@@ -1,0 +1,71 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  python3.8
+
+  Sample SAM Template for rekognition-face-blur-sam-app
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+Resources:
+  BlurFacesFunction:
+    Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+    Properties:
+      PackageType: Image
+      Timeout: 15
+      Environment:
+        Variables:
+          BLUR_TYPE: 'pixelate'
+          OUTPUT_BUCKET: !Ref OutputImageBucket
+      Events:
+        NewImageEvent:
+          Type: S3
+          Properties:
+            Bucket:
+              Ref: InputImageBucket
+            Events:
+              - 's3:ObjectCreated:*'
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 's3:GetObject'
+              Resource:
+                - !Join
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - !Ref InputImageBucket
+            - Effect: Allow
+              Action:
+                - 's3:PutObject'
+              Resource:
+                - !Join
+                  - ''
+                  - - 'arn:aws:s3:::'
+                    - !Ref OutputImageBucket
+            - Effect: Allow
+              Action:
+                - 'rekognition:DetectFaces'
+              Resource: '*'
+    Metadata:
+      Dockerfile: Dockerfile
+      DockerContext: ./blur_faces
+      DockerTag: python3.8-v1
+
+  InputImageBucket:
+    Type: 'AWS::S3::Bucket'
+
+  OutputImageBucket:
+    Type: 'AWS::S3::Bucket'
+
+Outputs:
+  BlurFacesFunction:
+    Description: "Blur Faces Lambda Function ARN"
+    Value: !GetAtt BlurFacesFunction.Arn
+  BlurFacesFunctionIamRole:
+    Description: "Implicit IAM Role created for Blur Faces function"
+    Value: !GetAtt BlurFacesFunctionRole.Arn
